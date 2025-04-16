@@ -1,12 +1,12 @@
 """
-Feature Selection using Variance Threshold and Recursive Feature Elimination (RFE)
-for the MEU Mobile KSD Dataset.
+Let's tackle the MEU Mobile KSD Dataset using variance-based feature selection and RFE
 
-This script:
-1. Loads and preprocesses the MEU Mobile KSD dataset
-2. Implements variance-based feature selection
-3. Implements Recursive Feature Elimination (RFE) as an additional feature selection technique
-4. Evaluates and compares model performance with different feature selection methods
+This script does a few key things:
+1. Loads up the keystrokes dataset and gets it ready for analysis
+2. Tries out a vanilla SVM model as our baseline
+3. Applies variance-based feature selection to see if we can simplify things
+4. Tests out RFE as another way to find the most important features
+5. Compares how well each approach performs
 """
 
 import pandas as pd
@@ -65,63 +65,63 @@ def load_and_preprocess_data(file_path):
 
 def evaluate_model(model, X_test, y_test, title="Model Performance"):
     """
-    Evaluate the model and print the results
+    See how well our model is doing
     
     Args:
-        model: Trained model
-        X_test: Test features
-        y_test: Test target variable
-        title: Title for the evaluation results
+        model: Our trained classifier
+        X_test: Test data features
+        y_test: The actual user IDs we want to predict
+        title: Name for this evaluation section
     
     Returns:
-        float: Accuracy score
+        accuracy: How often the model is right
     """
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     
     print(f"\n{title}")
     print(f"Accuracy: {accuracy:.4f}")
-    print("\nClassification Report:")
+    print("\nDetailed breakdown by class:")
     print(classification_report(y_test, y_pred))
     
     return accuracy
 
 def variance_based_feature_selection(X_train, X_test, threshold=0.0):
     """
-    Apply variance-based feature selection
+    Get rid of features that don't vary much across samples
     
     Args:
-        X_train: Training features
-        X_test: Test features
-        threshold: Variance threshold
+        X_train: Training data
+        X_test: Test data
+        threshold: Features with variance below this get dropped
         
     Returns:
-        tuple: Transformed X_train and X_test
+        X_train_var, X_test_var: Datasets with only the high-variance features
     """
-    # Create a variance threshold selector
+    # Create our feature filter
     selector = VarianceThreshold(threshold=threshold)
     
-    # Fit and transform the training data
+    # Apply the filter to our training data
     X_train_var = selector.fit_transform(X_train)
     
-    # Transform the test data
+    # Use the same filter on our test data
     X_test_var = selector.transform(X_test)
     
-    # Get the feature indices that were selected
+    # Find out which features made the cut
     selected_features = selector.get_support(indices=True)
     
     print(f"\nVariance-based Feature Selection (threshold={threshold})")
     print(f"Number of features before selection: {X_train.shape[1]}")
     print(f"Number of features after selection: {X_train_var.shape[1]}")
     
-    # Get the selected feature names
+    # Get the names of our selected features
     selected_feature_names = [X_train.columns[i] for i in selected_features]
     
     if len(selected_features) < X_train.shape[1]:
         print(f"Features removed: {X_train.shape[1] - len(selected_features)}")
         
-        # Print the feature names that were selected
-        print("\nSelected features (sample of first 10):")
+        # Show some of the features we kept
+        print("\nSelected features (just showing the first 10):")
         for i, feature in enumerate(selected_feature_names[:10]):
             print(f"  {i+1}. {feature}")
         
@@ -130,7 +130,7 @@ def variance_based_feature_selection(X_train, X_test, threshold=0.0):
     else:
         print("No features were removed based on the variance threshold.")
     
-    # Convert to DataFrame with selected feature names
+    # Package everything back into DataFrames with proper column names
     X_train_var_df = pd.DataFrame(X_train_var, columns=selected_feature_names)
     X_test_var_df = pd.DataFrame(X_test_var, columns=selected_feature_names)
     
@@ -138,57 +138,57 @@ def variance_based_feature_selection(X_train, X_test, threshold=0.0):
 
 def rfe_feature_selection(X_train, X_test, y_train, n_features_to_select=None):
     """
-    Apply Recursive Feature Elimination (RFE) for feature selection
+    Let's be more selective - find the most important features by training and ranking
     
     Args:
-        X_train: Training features
-        X_test: Test features
-        y_train: Training target variable
-        n_features_to_select: Number of features to select
+        X_train: Training data
+        X_test: Test data
+        y_train: Target values for training
+        n_features_to_select: How many features to keep
         
     Returns:
-        tuple: Transformed X_train and X_test
+        X_train_rfe, X_test_rfe: Datasets with only the best features
     """
-    # If n_features_to_select is not specified, select half of the features
+    # If not specified, let's keep half of the features
     if n_features_to_select is None:
         n_features_to_select = X_train.shape[1] // 2
     
-    # Create an SVM classifier for RFE
+    # We'll use a linear SVM to help us rank features
     svm = SVC(kernel="linear", random_state=42)
     
-    # Create the RFE selector
+    # Set up RFE to recursively eliminate features
     selector = RFE(estimator=svm, n_features_to_select=n_features_to_select, step=1)
     
-    # Fit the RFE selector to the training data
+    # Train it on our data to find the best features
     X_train_rfe = selector.fit_transform(X_train, y_train)
     
-    # Transform the test data
+    # Apply the same transformation to test data
     X_test_rfe = selector.transform(X_test)
     
-    # Get the feature indices that were selected
+    # Get the indices of features we're keeping
     selected_features = np.where(selector.support_)[0]
     
-    print(f"\nRecursive Feature Elimination (n_features_to_select={n_features_to_select})")
+    print(f"\nRecursive Feature Elimination (keeping {n_features_to_select} features)")
     print(f"Number of features before selection: {X_train.shape[1]}")
     print(f"Number of features after selection: {X_train_rfe.shape[1]}")
     
-    # Print the feature names that were selected
+    # Let's see which features made the cut
     selected_feature_names = [X_train.columns[i] for i in selected_features]
-    print("\nSelected features (sample of first 10):")
+    print("\nTop features (just showing the first 10):")
     for i, feature in enumerate(selected_feature_names[:10]):
         print(f"  {i+1}. {feature}")
     
     if len(selected_feature_names) > 10:
         print(f"  ... and {len(selected_feature_names) - 10} more features")
     
-    # Print feature ranking (only top 10)
+    # Show the features ranked by importance
     feature_ranks = {str(col): rank for col, rank in zip(X_train.columns, selector.ranking_)}
     sorted_features = sorted(feature_ranks.items(), key=lambda x: x[1])
-    print("\nTop 10 features by ranking (lower is better):")
+    print("\nTop 10 features by importance (lower rank = more important):")
     for i, (feature, rank) in enumerate(sorted_features[:10]):
         print(f"  {i+1}. {feature}: {rank}")
     
-    # Convert to DataFrame with selected feature names
+    # Package everything back into DataFrames with proper column names
     X_train_rfe_df = pd.DataFrame(X_train_rfe, columns=selected_feature_names)
     X_test_rfe_df = pd.DataFrame(X_test_rfe, columns=selected_feature_names)
     
