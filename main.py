@@ -265,6 +265,22 @@ def main():
     
     # Evaluate the RFE-based model
     rfe_accuracy = evaluate_model(rfe_model, X_test_rfe, y_test, "SVM with RFE Feature Selection")
+
+    # SelectKBest Feature Selection (ANOVA F-Value)
+    from sklearn.feature_selection import SelectKBest, f_classif
+    
+    print("\nApplying SelectKBest Feature Selection (Top 20 Features)...")
+
+    selector_kbest = SelectKBest(score_func=f_classif, k=20)
+    X_train_kbest = selector_kbest.fit_transform(X_train, y_train)
+    X_test_kbest = selector_kbest.transform(X_test)
+    
+    # Retrain SVM on top-K features
+    kbest_model = SVC()
+    kbest_model.fit(X_train_kbest, y_train)
+    y_pred_kbest = kbest_model.predict(X_test_kbest)
+    kbest_accuracy = accuracy_score(y_test, y_pred_kbest)
+    print("SelectKBest (Top 20) Accuracy:", kbest_accuracy)
     
     # Compare the results
     print("\nComparison of Feature Selection Methods:")
