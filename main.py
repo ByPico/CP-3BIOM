@@ -287,6 +287,28 @@ def main():
     print(f"Baseline SVM Accuracy: {baseline_accuracy:.4f}")
     print(f"Variance-based Feature Selection Accuracy: {var_accuracy:.4f}")
     print(f"RFE Feature Selection Accuracy: {rfe_accuracy:.4f}")
+
+    # ---- Tree-Based Feature Importance Selection ----
+    from sklearn.ensemble import ExtraTreesClassifier
+
+    print("\\nApplying Tree-Based Feature Selection (Top 20 Features)...")
+    forest = ExtraTreesClassifier(n_estimators=100)
+    forest.fit(X_train, y_train)
+
+    importances = forest.feature_importances_
+    indices = importances.argsort()[::-1][:20]
+
+    X_train_tree = X_train.iloc[:, indices]
+    X_test_tree = X_test.iloc[:, indices]
+
+    tree_model = SVC()
+    tree_model.fit(X_train_tree, y_train)
+    y_pred_tree = tree_model.predict(X_test_tree)
+    tree_accuracy = accuracy_score(y_test, y_pred_tree)
+    print("Tree-Based Feature Selection Accuracy:", tree_accuracy)
+
+    methods.append("Tree-Based")
+    accuracies.append(tree_accuracy)
     
     # Plot the comparison
     methods = ['Baseline', 'Variance-based', 'RFE']
